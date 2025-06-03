@@ -1,69 +1,11 @@
-#include <iostream>
-#include <vector>
-#include <fstream>
-#include <string>
-#include <cmath>
+#include "common.h"
 #include <ctime>
 #include <iomanip>
-#include <sstream>
-#include <filesystem>
-
-using namespace std;
-
-struct Point {
-    double x, y;
-};
 
 vector<Point> cities;
 int n;
 string dataset_name;
-
-double distance(int i, int j) {
-    if (i == j) return 0.0;
-    double dx = cities[i].x - cities[j].x;
-    double dy = cities[i].y - cities[j].y;
-    return sqrt(dx * dx + dy * dy);
-}
-
-bool readTSPFile(string filename) {
-    ifstream file(filename);
-    if (!file.is_open()) return false;
-    
-    string line;
-    cities.clear();
-    
-    while (getline(file, line)) {
-        if (line.find("NAME") == 0) {
-            stringstream ss(line);
-            string temp, name;
-            getline(ss, temp, ':');
-            getline(ss, name);
-            dataset_name = name;
-            while (dataset_name[0] == ' ') dataset_name.erase(0, 1);
-        } 
-        else if (line.find("DIMENSION") == 0) {
-            stringstream ss(line);
-            string temp;
-            getline(ss, temp, ':');
-            ss >> n;
-        } 
-        else if (line.find("NODE_COORD_SECTION") == 0) {
-            break;
-        }
-    }
-    
-    while (getline(file, line) && line != "EOF") {
-        if (!line.empty()) {
-            stringstream ss(line);
-            int id;
-            double x, y;
-            ss >> id >> x >> y;
-            cities.push_back({x, y});
-        }
-    }
-    
-    return cities.size() == n;
-}
+string edge_weight_type;
 
 vector<pair<int, int>> buildMST(int root) {
     vector<bool> inMST(n, false);
@@ -124,14 +66,6 @@ vector<int> preorderWalk(vector<pair<int, int>>& mstEdges, int root) {
     return visitedOrder;
 }
 
-double calculateTourCost(vector<int>& tourPath) {
-    double totalCost = 0.0;
-    for (int i = 0; i < tourPath.size() - 1; i++) {
-        totalCost += distance(tourPath[i], tourPath[i + 1]);
-    }
-    return totalCost;
-}
-
 double calculateMSTCost(vector<pair<int, int>>& mstEdges) {
     double mstCost = 0.0;
     for (auto edge : mstEdges) {
@@ -141,6 +75,8 @@ double calculateMSTCost(vector<pair<int, int>>& mstEdges) {
 }
 
 void saveResult(double tourCost, double mstCost, double executionTime) {
+    filesystem::create_directory("results");
+    
     ofstream file("results/results_mst.csv", ios::app);
     
     file.seekp(0, ios::end);
@@ -156,7 +92,7 @@ void saveResult(double tourCost, double mstCost, double executionTime) {
 }
 
 int main() {
-    vector<string> files = {"dataset/a280.tsp", "dataset/xql662.tsp", "dataset/kz9976.tsp", "dataset/mona-lisa100K.tsp"};
+    vector<string> files = {"dataset/ulysses16.tsp", "dataset/a280.tsp", "dataset/xql662.tsp", "dataset/kz9976.tsp", "dataset/mona-lisa100K.tsp"};
     
     for (string filename : files) {
         cout << "Processing " << filename << "..." << endl;
@@ -184,6 +120,6 @@ int main() {
         saveResult(tourCost, mstCost, time);
     }
     
-    cout << "Done! Results saved to results.csv" << endl;
+    cout << "Done!" << endl;
     return 0;
 }
