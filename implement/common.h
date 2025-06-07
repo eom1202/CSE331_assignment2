@@ -49,6 +49,13 @@ double distance(int i, int j) {
     }
 }
 
+string trim(string str) {
+    size_t start = str.find_first_not_of(" \t\r\n");
+    if (start == string::npos) return "";
+    size_t end = str.find_last_not_of(" \t\r\n");
+    return str.substr(start, end - start + 1);
+}
+
 bool readTSPFile(string filename) {
     ifstream file(filename);
     if (!file.is_open()) return false;
@@ -56,45 +63,47 @@ bool readTSPFile(string filename) {
     string line;
     cities.clear();
     edge_weight_type = "EUC_2D";
+    dataset_name = "";
     
     while (getline(file, line)) {
         if (line.find("NAME") == 0) {
-            stringstream ss(line);
-            string temp, name;
-            getline(ss, temp, ':');
-            getline(ss, name);
-            dataset_name = name;
-            while (!dataset_name.empty() && dataset_name[0] == ' ') dataset_name.erase(0, 1);
+            size_t colonPos = line.find(':');
+            if (colonPos != string::npos) {
+                dataset_name = trim(line.substr(colonPos + 1));
+            }
         } 
         else if (line.find("DIMENSION") == 0) {
-            stringstream ss(line);
-            string temp;
-            getline(ss, temp, ':');
-            ss >> n;
+            size_t colonPos = line.find(':');
+            if (colonPos != string::npos) {
+                string numStr = line.substr(colonPos + 1);
+                stringstream ss(numStr);
+                ss >> n;
+            }
         }
         else if (line.find("EDGE_WEIGHT_TYPE") == 0) {
-            stringstream ss(line);
-            string temp;
-            getline(ss, temp, ':');
-            ss >> edge_weight_type;
+            size_t colonPos = line.find(':');
+            if (colonPos != string::npos) {
+                string typeStr = line.substr(colonPos + 1);
+                stringstream ss(typeStr);
+                ss >> edge_weight_type;
+            }
         }
         else if (line.find("NODE_COORD_SECTION") == 0) {
             break;
         }
     }
     
-    while (getline(file, line) && line != "EOF") {
+    while (getline(file, line) && line.find("EOF") == string::npos) {
         if (!line.empty()) {
-            while (!line.empty() && (line[0] == ' ' || line[0] == '\t')) {
-                line.erase(0, 1);
-            }
+            line = trim(line);
             
             if (!line.empty()) {
                 stringstream ss(line);
                 int id;
                 double x, y;
-                ss >> id >> x >> y;
-                cities.push_back({x, y});
+                if (ss >> id >> x >> y) {
+                    cities.push_back({x, y});
+                }
             }
         }
     }

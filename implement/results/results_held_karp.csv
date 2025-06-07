@@ -1,2 +1,2 @@
-Dataset,Cities,Tour_Cost,Execution_Time
-ulysses16.tsp,16,6859.0000,0.9880
+Dataset,Cities,Tour_Cost,Execution_Time,Tour_Order
+ulysses16.tsp,16,6859.0000,1.1294,1 8 4 2 3 16 10 9 11 5 15 6 7 12 13 14 1
