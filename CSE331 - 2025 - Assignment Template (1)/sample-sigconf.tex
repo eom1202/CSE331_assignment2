@@ -1,10 +1,13 @@
-
 \documentclass[sigconf]{acmart}
 \AtBeginDocument{%
   \providecommand\BibTeX{{%
     Bib\TeX}}}
 
 \usepackage{lipsum}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
+\usepackage{booktabs}
 
 \setcopyright{acmlicensed}
 \copyrightyear{2018}
@@ -65,7 +68,7 @@ The geographical distance calculation converts coordinates to latitude/longitude
 
 \subsection{Held-Karp Dynamic Programming Algorithm}
 
-The Held-Karp algorithm \cite{held1962dynamic} is an exact dynamic programming approach that computes optimal TSP solutions in $O(n^2 \cdot 2^n)$ time and $O(n \cdot 2^n)$ space. The algorithm uses bitmasks to represent subsets of visited cities and memoization to avoid redundant computations.
+The Held-Karp algorithm \cite{heldkarp_blog} is an exact dynamic programming approach that computes optimal TSP solutions in $O(n^2 \cdot 2^n)$ time and $O(n \cdot 2^n)$ space. The algorithm uses bitmasks to represent subsets of visited cities and memoization to avoid redundant computations.
 
 \begin{algorithm}
 \caption{Held-Karp Algorithm}
@@ -92,7 +95,7 @@ The Held-Karp algorithm \cite{held1962dynamic} is an exact dynamic programming a
 
 \subsection{MST-based 2-Approximation Algorithm}
 
-The MST-based approach provides a 2-approximation for metric TSP instances. It constructs a minimum spanning tree, performs a depth-first traversal, and shortcuts repeated vertices to form a Hamiltonian cycle.
+The MST-based approach \cite{mst_blog} provides a 2-approximation for metric TSP instances. It constructs a minimum spanning tree, performs a depth-first traversal, and shortcuts repeated vertices to form a Hamiltonian cycle.
 
 \begin{algorithm}
 \caption{MST-based 2-Approximation}
@@ -182,7 +185,7 @@ We evaluated all algorithms on five benchmark datasets: ulysses16 (16 cities), a
 \centering
 \caption{Algorithm Performance Comparison}
 \scriptsize
-\begin{tabular}{p{2cm}p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}}
+\begin{tabular}{p{1.5cm}p{1.2cm}p{1.2cm}p{1.2cm}p{1.2cm}p{1.2cm}}
 \toprule
 Dataset & Optimal & Held-Karp & Clustering-HK & MST & Greedy \\
 \midrule
@@ -230,22 +233,21 @@ Future work should explore this inter-cluster distance refinement, alternative c
 \begin{thebibliography}{2}
 
 \bibitem{heldkarp_blog}
+Developer Blog.
 \textit{Held-Karp Algorithm Implementation Guide}.
 \url{https://develop123.tistory.com/292?category=1075984}.
-Accessed: 2025.
+2025. Accessed: 2025.
 
 \bibitem{mst_blog}
+Gazelle and CS Blog.
 \textit{MST-based 2-Approximation for TSP}.
 \url{https://gazelle-and-cs.tistory.com/18}.
-Accessed: 2025.
+2025. Accessed: 2025.
 
 \end{thebibliography}
 
 \section*{CODE AVAILABILITY}
 All source code and datasets are available at: \url{https://github.com/eom1202/CSE331_assignment2}
 
-
-\bibliographystyle{ACM-Reference-Format}
-\bibliography{reference}
 
 \end{document}
