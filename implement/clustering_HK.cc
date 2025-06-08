@@ -11,6 +11,9 @@ int n;
 string dataset_name;
 string edge_weight_type;
 
+map<pair<int, int>, double> clusterMemo;
+vector<int> currentCluster;
+
 struct Cluster {
     vector<int> cityIndices;
     Point centroid;
@@ -20,6 +23,69 @@ double distancePoints(Point a, Point b) {
     double dx = a.x - b.x;
     double dy = a.y - b.y;
     return sqrt(dx * dx + dy * dy);
+}
+
+double heldKarpRecursive(int mask, int pos) {
+    int clusterSize = currentCluster.size();
+    if (mask == (1 << clusterSize) - 1) {
+        return distance(currentCluster[pos], currentCluster[0]);
+    }
+    
+    pair<int, int> state = {mask, pos};
+    if (clusterMemo.find(state) != clusterMemo.end()) {
+        return clusterMemo[state];
+    }
+    
+    double result = 1e9;
+    for (int next = 0; next < clusterSize; next++) {
+        if (mask & (1 << next)) continue;
+        
+        double cost = distance(currentCluster[pos], currentCluster[next]) + heldKarpRecursive(mask | (1 << next), next);
+        result = min(result, cost);
+    }
+    
+    clusterMemo[state] = result;
+    return result;
+}
+
+double heldKarpCluster(vector<int>& cluster, vector<int>& tour) {
+    int clusterSize = cluster.size();
+    if (clusterSize == 1) {
+        tour = {cluster[0], cluster[0]};
+        return 0.0;
+    }
+    
+    clusterMemo.clear();
+    currentCluster = cluster;
+    
+    double bestCost = heldKarpRecursive(1, 0);
+    
+    tour.clear();
+    int mask = 1;
+    int pos = 0;
+    tour.push_back(cluster[0]);
+    
+    while (mask != (1 << clusterSize) - 1) {
+        int nextPos = -1;
+        double minCost = 1e9;
+        
+        for (int next = 0; next < clusterSize; next++) {
+            if (mask & (1 << next)) continue;
+            
+            double cost = distance(cluster[pos], cluster[next]) + heldKarpRecursive(mask | (1 << next), next);
+            if (cost < minCost) {
+                minCost = cost;
+                nextPos = next;
+            }
+        }
+        
+        tour.push_back(cluster[nextPos]);
+        mask |= (1 << nextPos);
+        pos = nextPos;
+    }
+    
+    tour.push_back(cluster[0]);
+    return bestCost;
 }
 
 vector<Cluster> kMeansPlusPlus(int k) {
@@ -236,137 +302,141 @@ vector<Cluster> kMeansPlusPlus(int k) {
     return validClusters;
 }
 
-map<pair<int, int>, double> clusterMemo;
-vector<int> currentCluster;
-
-double heldKarpRecursive(int mask, int pos) {
-    int clusterSize = currentCluster.size();
-    if (mask == (1 << clusterSize) - 1) {
-        return distance(currentCluster[pos], currentCluster[0]);
+vector<int> getClusterOrder(vector<Cluster>& clusters) {
+    int numClusters = clusters.size();
+    if (numClusters == 1) return {0};
+    
+    vector<Point> clusterPoints;
+    for (int i = 0; i < numClusters; i++) {
+        clusterPoints.push_back(clusters[i].centroid);
     }
     
-    pair<int, int> state = {mask, pos};
-    if (clusterMemo.find(state) != clusterMemo.end()) {
-        return clusterMemo[state];
-    }
+    vector<Point> originalCities = cities;
+    int originalN = n;
+    cities = clusterPoints;
+    n = numClusters;
     
-    double result = 1e9;
-    for (int next = 0; next < clusterSize; next++) {
-        if (mask & (1 << next)) continue;
-        
-        double cost = distance(currentCluster[pos], currentCluster[next]) + heldKarpRecursive(mask | (1 << next), next);
-        result = min(result, cost);
-    }
+    vector<bool> inMST(n, false);
+    vector<double> minEdge(n, 1e9);
+    vector<int> parent(n, -1);
     
-    clusterMemo[state] = result;
-    return result;
-}
-
-double heldKarpCluster(vector<int>& cluster, vector<int>& tour) {
-    int clusterSize = cluster.size();
-    if (clusterSize == 1) {
-        tour = {cluster[0], cluster[0]};
-        return 0.0;
-    }
+    minEdge[0] = 0;
+    vector<pair<int, int>> mstEdges;
     
-    clusterMemo.clear();
-    currentCluster = cluster;
-    
-    double bestCost = heldKarpRecursive(1, 0);
-    
-    tour.clear();
-    int mask = 1;
-    int pos = 0;
-    tour.push_back(cluster[0]);
-    
-    while (mask != (1 << clusterSize) - 1) {
-        int nextPos = -1;
-        double minCost = 1e9;
-        
-        for (int next = 0; next < clusterSize; next++) {
-            if (mask & (1 << next)) continue;
-            
-            double cost = distance(cluster[pos], cluster[next]) + heldKarpRecursive(mask | (1 << next), next);
-            if (cost < minCost) {
-                minCost = cost;
-                nextPos = next;
+    for (int step = 0; step < n; step++) {
+        int u = -1;
+        for (int v = 0; v < n; v++) {
+            if (!inMST[v] && (u == -1 || minEdge[v] < minEdge[u])) {
+                u = v;
             }
         }
         
-        tour.push_back(cluster[nextPos]);
-        mask |= (1 << nextPos);
-        pos = nextPos;
-    }
-    
-    tour.push_back(cluster[0]);
-    return bestCost;
-}
-
-vector<int> connectClusters(vector<Cluster>& clusters, vector<vector<int>>& clusterTours) {
-    int numClusters = clusters.size();
-    vector<bool> visited(numClusters, false);
-    vector<int> finalTour;
-    
-    int current = 0;
-    visited[current] = true;
-    
-    for (int step = 0; step < numClusters; step++) {
-        for (int i = 0; i < clusterTours[current].size() - 1; i++) {
-            finalTour.push_back(clusterTours[current][i]);
+        inMST[u] = true;
+        
+        if (parent[u] != -1) {
+            mstEdges.push_back({parent[u], u});
         }
         
-        if (step == numClusters - 1) break;
-        
-        int nextCluster = -1;
-        double minDist = 1e9;
-        int bestStartCity = -1;
-        int bestEndCity = -1;
-        
-        for (int next = 0; next < numClusters; next++) {
-            if (visited[next]) continue;
-            
-            for (int i : clusters[current].cityIndices) {
-                for (int j : clusters[next].cityIndices) {
-                    double dist = distance(i, j);
-                    if (dist < minDist) {
-                        minDist = dist;
-                        nextCluster = next;
-                        bestStartCity = i;
-                        bestEndCity = j;
-                    }
+        for (int v = 0; v < n; v++) {
+            if (!inMST[v]) {
+                double weight = distancePoints(clusterPoints[u], clusterPoints[v]);
+                if (weight < minEdge[v]) {
+                    minEdge[v] = weight;
+                    parent[v] = u;
                 }
             }
         }
+    }
+    
+    vector<vector<int>> children(n);
+    for (auto edge : mstEdges) {
+        children[edge.first].push_back(edge.second);
+    }
+    
+    vector<int> visitedOrder;
+    vector<int> stack;
+    stack.push_back(0);
+    
+    while (!stack.empty()) {
+        int current = stack.back();
+        stack.pop_back();
+        visitedOrder.push_back(current);
         
-        if (nextCluster != -1) {
-            int startIdx = 0;
-            for (int i = 0; i < clusterTours[nextCluster].size(); i++) {
-                if (clusterTours[nextCluster][i] == bestEndCity) {
-                    startIdx = i;
+        for (int i = children[current].size() - 1; i >= 0; i--) {
+            stack.push_back(children[current][i]);
+        }
+    }
+    
+    cities = originalCities;
+    n = originalN;
+    
+    return visitedOrder;
+}
+
+vector<int> mergeCycles(vector<int>& cycleA, vector<int>& cycleB) {
+    double minCost = 1e9;
+    vector<int> bestMergedCycle;
+    
+    for (int nodeA : cycleA) {
+        if (nodeA == cycleA.back()) continue;
+        
+        for (int nodeB : cycleB) {
+            if (nodeB == cycleB.back()) continue;
+            
+            double connectionCost = distance(nodeA, nodeB);
+            
+            int posA = 0;
+            for (int i = 0; i < cycleA.size() - 1; i++) {
+                if (cycleA[i] == nodeA) {
+                    posA = i;
                     break;
                 }
             }
             
-            vector<int> reorderedTour;
-            for (int i = startIdx; i < clusterTours[nextCluster].size() - 1; i++) {
-                reorderedTour.push_back(clusterTours[nextCluster][i]);
+            int posB = 0;
+            for (int i = 0; i < cycleB.size() - 1; i++) {
+                if (cycleB[i] == nodeB) {
+                    posB = i;
+                    break;
+                }
             }
-            for (int i = 0; i < startIdx; i++) {
-                reorderedTour.push_back(clusterTours[nextCluster][i]);
-            }
-            reorderedTour.push_back(clusterTours[nextCluster][startIdx]);
             
-            clusterTours[nextCluster] = reorderedTour;
-            visited[nextCluster] = true;
-            current = nextCluster;
+            int prevA = (posA - 1 + cycleA.size() - 1) % (cycleA.size() - 1);
+            int nextA = (posA + 1) % (cycleA.size() - 1);
+            int prevB = (posB - 1 + cycleB.size() - 1) % (cycleB.size() - 1);
+            int nextB = (posB + 1) % (cycleB.size() - 1);
+            
+            double removedCostA = distance(cycleA[prevA], nodeA) + distance(nodeA, cycleA[nextA]);
+            double removedCostB = distance(cycleB[prevB], nodeB) + distance(nodeB, cycleB[nextB]);
+            
+            double addedCostA = distance(cycleA[prevA], cycleA[nextA]);
+            double addedCostB = distance(cycleB[prevB], cycleB[nextB]);
+            
+            double totalCost = connectionCost + addedCostA + addedCostB - removedCostA - removedCostB;
+            
+            if (totalCost < minCost) {
+                minCost = totalCost;
+                
+                bestMergedCycle.clear();
+                
+                for (int i = 0; i < cycleA.size() - 1; i++) {
+                    if (cycleA[i] != nodeA) {
+                        bestMergedCycle.push_back(cycleA[i]);
+                    }
+                }
+                
+                for (int i = 0; i < cycleB.size() - 1; i++) {
+                    if (cycleB[i] != nodeB) {
+                        bestMergedCycle.push_back(cycleB[i]);
+                    }
+                }
+                
+                bestMergedCycle.push_back(bestMergedCycle[0]);
+            }
         }
     }
     
-    if (!finalTour.empty()) {
-        finalTour.push_back(finalTour[0]);
-    }
-    
-    return finalTour;
+    return bestMergedCycle;
 }
 
 void saveResult(double tourCost, double executionTime) {
@@ -386,7 +456,7 @@ void saveResult(double tourCost, double executionTime) {
 }
 
 int main() {
-    vector<string> files = {"dataset/xql662.tsp"};
+    vector<string> files = {"dataset/ulysses16.tsp","dataset/a280.tsp","dataset/xql662","dataset/kz9976.tsp"};
     
     for (string filename : files) {
         cout << "Processing " << filename << "..." << endl;
@@ -404,18 +474,25 @@ int main() {
         cout << "Clustering completed" << endl;
         
         vector<vector<int>> clusterTours(clusters.size());
-        double totalCost = 0.0;
         
         for (int i = 0; i < clusters.size(); i++) {
             cout << "Solving cluster " << (i+1) << "/" << clusters.size() 
                  << " (size: " << clusters[i].cityIndices.size() << ")" << endl;
             
             vector<int> tour;
-            double clusterCost = heldKarpCluster(clusters[i].cityIndices, tour);
+            heldKarpCluster(clusters[i].cityIndices, tour);
             clusterTours[i] = tour;
         }
         
-        vector<int> finalTour = connectClusters(clusters, clusterTours);
+        vector<int> clusterOrder = getClusterOrder(clusters);
+        
+        vector<int> finalTour = clusterTours[clusterOrder[0]];
+        
+        for (int i = 1; i < clusterOrder.size(); i++) {
+            int currentClusterIdx = clusterOrder[i];
+            finalTour = mergeCycles(finalTour, clusterTours[currentClusterIdx]);
+        }
+        
         double tourCost = calculateTourCost(finalTour);
         
         clock_t end = clock();
